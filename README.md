@@ -13,7 +13,7 @@ EXECUTION INSTRUCTIONS:
 For non-developers:
 
 1. Download the GenEvol.rar file.
-2. Extract the file GenEvol.exe from the downloaded archive.
+2. Extract the file GenEvol.exe (for winOS users) from the downloaded package.
 3. Run GenEvol.exe, and you're all set!
 
 For Python developers:
