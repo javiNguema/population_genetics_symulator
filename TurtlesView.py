@@ -8,7 +8,7 @@ from typing import Dict, Tuple, List
 import tkinter as tk
 import functools
 from TurtlesModel import TurtleBlueprint
-
+import random
 
 text_font = 'Arial', 15
 SETTING_FWIDTH = 200
@@ -16,6 +16,10 @@ VIEW_FWIDTH = 765
 VIEW_FHEIGHT = 765
 UPER_MARGIN = 5
 SIDE_MARGIN = 0.1
+ENV_SPACE_WIDTH = 600
+ENV_SPACE_HEIGH = 600
+RESOURCE_SIZE = 10
+POP_DENSITY = 1.5
 
 
 class TurtleInfo(ctk.CTkToplevel):
@@ -56,35 +60,50 @@ class TurtleInfo(ctk.CTkToplevel):
 
 class EvolutionFigure:
     def __init__(self, frame) -> None:
-        self.f = Figure(figsize=(7.8, 3.85), dpi=100)
-        self.f.subplots_adjust(hspace=0, wspace=0, bottom=0.13, top=0.95, right=0.95)
-        self.fig = self.f.add_subplot(111)
-        self.pop_evol_line, = self.fig.plot([], [], 'g-', lw=2, label = 'alive')
-        self.pop_death, = self.fig.plot([], [], 'r-', lw=2, label= 'dead')
-        self.f.legend()
+        f_width = 7.8
+        f_height = 10
 
+        self.f = Figure(figsize=(f_width, f_height), dpi=100)
+        self.f.subplots_adjust(hspace=0.2, wspace=0, bottom=0.13, top=0.95, right=0.95)
+
+
+        self.fig = self.f.subplots(nrows =2, ncols=1)
+
+        self.pop_evol_line, = self.fig[0].plot([], [], 'g-', lw=1, label = 'alive')
+        self.pop_death, = self.fig[0].plot([], [], 'r-', lw=1, label= 'dead')
+        self.fig[0].legend()
+        self.fig[0].set_xlabel('time (ticks)')
+        self.fig[0].set_ylabel('turtles population (individuals)')
         
 
-        self.f2 = Figure(figsize=(7.8, 3.85), dpi=100)
-        self.f2.subplots_adjust(hspace=0, wspace=0, bottom = 0.13, top=0.95, right=0.95)
-        
-       
-        self.fig_genotype = self.f2.add_subplot(111)
-        self.aa_freq, = self.fig_genotype.plot([], [], 'k--', lw=2, label = 'aa')
-        self.Aa_freq, = self.fig_genotype.plot([], [], 'k^-', lw=2, label = 'Aa')
-        self.AA_freq, = self.fig_genotype.plot([], [], 'ko-', lw=2, label = 'AA')
-        self.f2.legend()
+        self.aa_freq, = self.fig[1].plot([], [], 'g-', lw=1, label = 'aa')
+        self.Aa_freq, = self.fig[1].plot([], [], 'b-', lw=1, label= 'Ab')
+        self.AA_freq, = self.fig[1].plot([], [], 'r-', lw=1, label= 'AA')
 
-        self.fig.set_ylabel('Population of Turtles')
+        self.fig[1].legend()
+        self.fig[1].set_xlabel('time (ticks)')
+        self.fig[1].set_ylabel('genotype frequency')
+
+
+
+        # self.f2 = Figure(figsize=(f_width, f_height), dpi=100)
+        # self.f2.subplots_adjust(hspace=0, wspace=0, bottom = 0.13, top=0.95, right=0.95)
         
-        self.fig_genotype.set_xlabel('Ticks')
-        self.fig_genotype.set_ylabel('genotype frequency')
+        # self.fig_genotype = self.f2.add_subplot(111)
+        # self.aa_freq, = self.fig_genotype.plot([], [], 'k--', lw=2, label = 'aa')
+        # self.Aa_freq, = self.fig_genotype.plot([], [], 'k^-', lw=2, label = 'Aa')
+        # self.AA_freq, = self.fig_genotype.plot([], [], 'ko-', lw=2, label = 'AA')
+        # self.f2.legend()
+
+        # self.fig.set_ylabel('Population of Turtles')
+        # self.fig_genotype.set_xlabel('Ticks')
+        # self.fig_genotype.set_ylabel('genotype frequency')
         
-        
-        self.canvas = FigureCanvasTkAgg(self.f, frame)
-        self.canvas.get_tk_widget().pack(side = 'top', fill = 'both')
-        self.canvas2 = FigureCanvasTkAgg(self.f2, frame)
-        self.canvas2.get_tk_widget().pack(side = 'top', fill = 'both')
+        self.canvas_1 = FigureCanvasTkAgg(self.f, frame)
+        self.canvas_1.get_tk_widget().pack(side = 'top', fill = 'both')
+
+        self.canvas_2 = FigureCanvasTkAgg(self.f, frame)
+        self.canvas_2.get_tk_widget().pack(side = 'top', fill = 'both')
 
     
 
@@ -112,9 +131,9 @@ class EvolutionFigure:
         max_death = max(accumulated_deaths)
         max_alive = max(accumulated_turtles) 
         
-        self.fig.set_xlim(0, ticks + SIDE_MARGIN)
-        self.fig.set_ylim(0, max(1, max([max_death, max_alive]) + UPER_MARGIN))
-        self.canvas.draw()
+        self.fig[0].set_xlim(0, ticks + SIDE_MARGIN)
+        self.fig[0].set_ylim(0, max(1, max([max_death, max_alive]) + UPER_MARGIN))
+        self.canvas_1.draw()
         
 
         return accumulated_turtles, accumulated_deaths
@@ -143,24 +162,30 @@ class EvolutionFigure:
         cummulative_Aa = np.append(cummulative_Aa, cummulative_count_Aa)
         cummulative_AA = np.append(cummulative_AA, cummulative_count_AA)
         
-        self.fig_genotype.set_xlim(0, ticks + SIDE_MARGIN)
-        self.fig_genotype.set_ylim(0, 1.2)
+        self.fig[1].set_xlim(0, ticks + SIDE_MARGIN)
+        self.fig[1].set_ylim(0, 1.2)
+
+
         x_data = np.arange(ticks+1)
         self.aa_freq.set_data(x_data, cummulative_aa)
-        
         self.Aa_freq.set_data(x_data, cummulative_Aa)
         self.AA_freq.set_data(x_data, cummulative_AA)
         
-        self.canvas2.draw()
+        self.canvas_2.draw()
         
         cummulative_genotypes_updated = (cummulative_aa, cummulative_Aa, cummulative_AA)
         return cummulative_genotypes_updated
-        
+    
+    def energy_bar_life(self, turtle):
+        if turtle.energy_life != 0:
+            turtle.energy_life -=1
 
-class Universe(ctk.CTk):
-    is_initialized = False 
+
+
+class Universe(ctk.CTk): # environment where the tortles evolve
+    is_initialized = False
     is_evolving = False
-    def __init__(self, frame_size: str= '1520x620', simulation_time: int =20, n_turtles: int= 1) -> None:
+    def __init__(self, frame_size: str= '1520x660', simulation_time: int =20, n_turtles: int= 1) -> None:
         super().__init__()
         self.geometry(frame_size)
         self.resizable(width = False, height=False)
@@ -170,14 +195,16 @@ class Universe(ctk.CTk):
         self.ui()
         self.plot = EvolutionFigure(frame = self.plotting_frame)
 
-    def ui(self) -> None:
+    def ui(self) -> None: #user interface function
         self.frames = []
         for i in range(3):
             if i == 0:
                 width = SETTING_FWIDTH
             else:
                 width = VIEW_FWIDTH
-            frame = ctk.CTkFrame(self, width = width, height=VIEW_FHEIGHT, #fg_color='grey70'
+
+            # create all the main frames of the interface, indcluding, button holder, ecosystem holder and plot holder
+            frame = ctk.CTkFrame(self, width = width, height=VIEW_FHEIGHT, #fg_color='grey70', 
                                  )
             frame._set_scaling(1.0, 1.0) # change scaling factor to 1.0 to keep VIEW_FHEIGHT and VIEW_FWIDTH size
             frame.pack_configure(side = 'left', padx = 5, anchor = 'nw')
@@ -191,20 +218,25 @@ class Universe(ctk.CTk):
                           'resume': (..., self.resume_simulation),
                           }
         
+        # setting the button widgets 
+        
         for name, (_, callback) in self.cfbuttons.items():
             btn_widget = ctk.CTkButton(master = settings_frame, width = 255, text = name, font=text_font)
             btn_widget.pack_configure(side = 'top', pady = 5, padx = 3, anchor = 'w', fill='x')
             btn_widget.bind('<Button-1>', callback)
             self.cfbuttons[name] = (btn_widget, callback)
             
-        sliders = {'lifespan':(..., self._set_lifespan), 
-                   'symulation speed':(..., self._set_simulation_speed), 
-                   'birth rate':(..., self._set_birth_rate), 
+        sliders = {'lifespan':(..., self._set_lifespan),
+                   'symulation speed':(..., self._set_simulation_speed),
+                   'birth rate':(..., self._set_birth_rate),
                    'population size': (..., self._set_population_size),
-                   'fertility period': (..., self._set_fertility_period), 
+                   'fertility period': (..., self._set_fertility_period),
                    'maturity age': (..., self._set_maturity_age)
                    }
         self.lbl_slider_values = []
+
+        # setting labels and slides widgets
+
         for lbl, (_, callback) in sliders.items():
             
             lbl_widget = ctk.CTkLabel(settings_frame, text= lbl, font=text_font)
@@ -225,6 +257,9 @@ class Universe(ctk.CTk):
             elif lbl == 'maturity age':
                 slider_widget = ctk.CTkSlider(frame_sldr, from_ = 0, to =20, number_of_steps=20, command= callback)
                 slider_widget.set(output_value=18)
+            elif lbl == 'symulation speed':
+                slider_widget = ctk.CTkSlider(frame_sldr, from_ = 0, to =0.1, number_of_steps=10000, command= callback)
+                slider_widget.set(output_value=18)
             else:
                 slider_widget = ctk.CTkSlider(frame_sldr, from_ = 0, to =1, number_of_steps=1000, command= callback)
 
@@ -244,9 +279,13 @@ class Universe(ctk.CTk):
                 self.fertility_period_lbl, self.maturity_age = self.lbl_slider_values
     
         self.environment = self.frames[1]
-        self.environment.configure(fg_color = 'black')
+        self.environment.configure(fg_color = 'black', width =ENV_SPACE_WIDTH, height = ENV_SPACE_HEIGH)
+
+
+        # set the resources in the system
         
         self.plotting_frame = self.frames[2]
+        
     
     def stop_simulation(self, event=None):
         self.STOP = True
@@ -258,7 +297,7 @@ class Universe(ctk.CTk):
     def resume_simulation(self, event = None):
         self.RESUME = True
         self.PAUSE = False
-        if  self.is_evolving or not self.is_initialized: 
+        if  self.is_evolving or not self.is_initialized:
             return
         if not self.STOP:
             self.is_evolving = True
@@ -291,15 +330,14 @@ class Universe(ctk.CTk):
         self.population_size_lbl.configure(text = f'{int(event)}')
         
     
-    def _set_fertility_period(self, event = None) -> None: 
+    def _set_fertility_period(self, event = None) -> None:
         self.fertility_period_lbl.configure(text = f'{int(event)}')
         
-    def _set_maturity_age(self, event = None) -> None: 
+    def _set_maturity_age(self, event = None) -> None:
         self.maturity_age.configure(text = f'{int(event)}')
         
     
     def _initialize_universe(self, event=None):
-        
         
         if self.is_evolving:
             return
@@ -321,7 +359,7 @@ class Universe(ctk.CTk):
         for _ in range(int(population_size_value)):
             myturtle = TurtleBlueprint(frame = self.environment)
             myturtle.turtle_btn.bind("<Button-1>", self._show_turtle_info)
-            self.all_turtles.append(myturtle.get_data(lifespan=float(lifespan_value), fertility_period=float(fertility_period), maturity_age=float(maturity_age)))
+            self.all_turtles.append(myturtle.get_data(lifespan=int(lifespan_value), fertility_period=float(fertility_period), maturity_age=float(maturity_age)))
 
         self.run_evolve = functools.partial(self._run_evolve,
                                             lifespan_value = float(lifespan_value),
@@ -340,19 +378,21 @@ class Universe(ctk.CTk):
                 self.genotypes['AA'].append(turtle.genotype)
                 
                 
-        self.plot.population_genetics(ticks=0, 
-                                      all_turtles=self.all_turtles, 
-                                      genotypes=self.genotypes, 
+        self.plot.population_genetics(ticks=0,
+                                      all_turtles=self.all_turtles,
+                                      genotypes=self.genotypes,
                                       cummulative_genotypes = (np.zeros(0), np.zeros(0), np.zeros(0))
                                       )
         
-        self.plot.population_evolution(ticks=0, 
-                            turtle_count=len(self.all_turtles), 
-                            accumulated_turtles=np.zeros(0), 
-                            death_count=0, 
-                            accumulated_deaths=np.zeros(0)),
+        self.plot.population_evolution(ticks=0,
+                            turtle_count=len(self.all_turtles),
+                            accumulated_turtles=np.zeros(0),
+                            death_count=0,
+                            accumulated_deaths=np.zeros(0))
+        
+        # resources = Resources(frame = self.environment, number_agents=int(population_size_value))
 
-    def _run_evolve(self, 
+    def _run_evolve(self,
                     lifespan_value: int,
                     birth_rate_value: float,
                     sim_speed_value: int,
@@ -363,11 +403,11 @@ class Universe(ctk.CTk):
                     ticks: int = None,
                     accumulated_turtles: list = None,
                     accumulated_deaths: list = None,
-                    genotypes:Dict = None, 
+                    genotypes:Dict = None,
                     cummulative_genotypes: Tuple= None
                     ):
         
-        
+
         while self.simulation_time:
             if ticks is None:
                 ticks = 0
@@ -378,12 +418,12 @@ class Universe(ctk.CTk):
             if cummulative_genotypes is None:
                 cummulative_genotypes = (np.zeros(ticks), np.zeros(ticks), np.zeros(ticks))
             if genotypes is None:
-                genotypes = self.genotypes 
+                genotypes = self.genotypes
             if death_turtles is None:
                 death_turtles = set()
         
             if not all_turtles:
-                return 
+                return
             
             if self.PAUSE == True:
                     self.continue_run_evolve = functools.partial(self._run_evolve,
@@ -395,8 +435,8 @@ class Universe(ctk.CTk):
                                                 all_turtles=all_turtles, 
                                                 death_turtles=death_turtles,
                                                 ticks=ticks,
-                                                accumulated_turtles=accumulated_turtles, 
-                                                accumulated_deaths=accumulated_deaths, 
+                                                accumulated_turtles=accumulated_turtles,
+                                                accumulated_deaths=accumulated_deaths,
                                                 genotypes=genotypes, 
                                                 cummulative_genotypes=cummulative_genotypes)
                     return
@@ -405,11 +445,12 @@ class Universe(ctk.CTk):
                 return
             
             all_turtles_update = all_turtles.copy()
+            
             cummulative_genotypes = self.plot.population_genetics(ticks, all_turtles_update, genotypes, cummulative_genotypes)
-            accumulated_turtles, accumulated_deaths = self.plot.population_evolution(ticks=ticks, 
-                                                                turtle_count=len(all_turtles_update), 
-                                                                accumulated_turtles=accumulated_turtles, 
-                                                                death_count=len(death_turtles), 
+            accumulated_turtles, accumulated_deaths = self.plot.population_evolution(ticks=ticks,
+                                                                turtle_count=len(all_turtles_update),
+                                                                accumulated_turtles=accumulated_turtles,
+                                                                death_count=len(death_turtles),
                                                                 accumulated_deaths=accumulated_deaths)
             
             nturtles = len(all_turtles_update)
@@ -417,7 +458,7 @@ class Universe(ctk.CTk):
             while nturtles:
                 turtle = all_turtles_update[n]
                 
-                closest_neighbors = TurtleBlueprint.closest_neighbors(turtle_instance=turtle, all_turtles=all_turtles_update)
+                closest_neighbors = TurtleBlueprint.inspect_closest_neighbour(turtle_instance=turtle, all_turtles=all_turtles_update)
                 if closest_neighbors is not None:
                     new_born = TurtleBlueprint.give_birth(parents=closest_neighbors,
                                                         environment=self.environment,
@@ -429,6 +470,7 @@ class Universe(ctk.CTk):
                     assert new_born
                 except (AssertionError, UnboundLocalError):
                     pass
+
                 else:
                     new_born.turtle_btn.bind('<Button-1>', self._show_turtle_info)
                     all_turtles.append(new_born)
@@ -443,7 +485,7 @@ class Universe(ctk.CTk):
                 if turtle.maturity_state == 'mature' and turtle.fertility_state == 'fertile':
                     TurtleBlueprint.search_for_mates(turtle, all_turtles)
                 else:
-                    TurtleBlueprint.random_step(turtle) 
+                    TurtleBlueprint.random_step(turtle)
 
 
                 turtle.lifespan -= 1 if turtle.lifespan != 0 else 0
@@ -469,7 +511,7 @@ class Universe(ctk.CTk):
                 n +=1
                 nturtles -=1
 
-            time.sleep(1 - sim_speed_value)
+            time.sleep(0.1 - sim_speed_value)
             self.simulation_time -=1
             ticks +=1
 
@@ -482,6 +524,27 @@ class Universe(ctk.CTk):
         self.is_evolving = True
         self.run_evolve(all_turtles=self.all_turtles)
         self.is_evolving = False
+    
+
+
+class Resources:
+    def __init__(self, frame, number_agents, density = None):
+        self.frame = frame
+        
+        if density is None:
+            density = POP_DENSITY
+        self.population_size = int(density*number_agents)
+        self.populate()
+    
+    def sprout(self):
+        ...
+
+    def populate(self):
+        for i in range(self.population_size):
+            resource = ctk.CTkButton(master = self.frame, text='', width = 5, height= 8, border_width=0, border_spacing=0, fg_color='green')
+            resource.place(x=random.randint(1, ENV_SPACE_WIDTH), y =random.randint(1, ENV_SPACE_HEIGH))
+
+    
 
 
 if __name__ == '__main__':

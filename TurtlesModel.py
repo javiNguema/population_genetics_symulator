@@ -5,16 +5,19 @@ import time
 from typing import Any, Tuple, Dict, List
 import random
 import customtkinter as ctk
-import math 
-seed(time.time())   
+import math
+seed(time.time())
 
 
 
 VIEW_FWIDTH = 765
 VIEW_FHEIGHT = 765
-TURTLE_SIZE = 20
+TURTLE_SIZE = 10
 LIFE = 100
 MAX_DISTANCE_FOR_BIRTH = 20
+ENV_SPACE_WIDTH = 600
+ENV_SPACE_HEIGH = 600
+INITIAL_STATE_AVG_ENERGY = 10
 
 
 class TurtlesData(dict):
@@ -29,7 +32,8 @@ class TurtlesData(dict):
         """
         super(TurtlesData, self).__init__(**kwargs)
         self.ID = ''.join(([str(randint(10000, 99999))]) + (choices(ascii_letters, k =3)))
-        self.sex = choice(['F', 'M']) 
+        self.sex = choice(['F', 'M'])
+        # self.energy = INITIAL_STATE_AVG_ENERGY + random.randint(0, 9)
         
         
     def __getattr__(self, key) -> Any:
@@ -48,7 +52,7 @@ class Inheritance:
         self.turtle.genotype = random.choice(['AA', 'aa'])
 
     @classmethod
-    def segregation(cls, genotype1, genotype2, cache=None):
+    def segregation(cls, genotype1, genotype2, cache=None, count =0):
         genotype1 = list(genotype1)
         genotype2 = list(genotype2)
         if cache is None:
@@ -59,7 +63,8 @@ class Inheritance:
         for allele in genotype2:
             cache.append(candidate+allele)
         genotype1.pop(0)
-        return cls.segregation(genotype1=''.join(genotype1), genotype2=''.join(genotype2), cache =cache)
+        count +=1
+        return cls.segregation(genotype1=''.join(genotype1), genotype2=''.join(genotype2), cache =cache, count=count)
 
     @classmethod
     def homozigous_parents(cls, parent1, parent2) -> str:
@@ -74,20 +79,24 @@ class Inheritance:
 class TurtleBlueprint(TurtlesData):
     def __init__(self, frame: ctk.CTkFrame):
         super().__init__()
-        x_lim, y_lim = VIEW_FWIDTH - TURTLE_SIZE, VIEW_FHEIGHT - TURTLE_SIZE
+        x_lim, y_lim = ENV_SPACE_WIDTH - TURTLE_SIZE, ENV_SPACE_HEIGH - TURTLE_SIZE
         x_loc = random.randint(0, x_lim)
         y_loc = random.randint(0, y_lim)
         self.turtle_btn = ctk.CTkButton(frame, text=f'', hover=False, border_color='yellow', border_spacing=0, border_width=0,
                                         width=TURTLE_SIZE, height=TURTLE_SIZE, corner_radius=50, font=('Arial', 12), 
                                         fg_color='yellow')
+        
         self.turtle_btn._set_scaling(1.0, 1.0)
         self.turtle_btn.place(x=x_loc, y=y_loc)
         
-    def get_data(self, lifespan:int=15, genotype:str='None', fenotype: str='None', fertility_period: int=None, fertility_state:str = 'fertile', maturity_age: int=None, maturity_state:bool = 'mature') -> Dict:
+    def get_data(self, lifespan:int=15, genotype:str=None, fenotype: str=None, fertility_period: int=None, fertility_state:str = 'fertile', maturity_age: int=None, maturity_state:bool = 'mature') -> Dict:
         self.turtle_btn.update()
         x, y = self.turtle_btn.winfo_x(), self.turtle_btn.winfo_y()
         key_variables = ['location', 'lifespan', 'genotype', 'fenotype', 'fertility_period', 'fertility_state', 'maturity_age', 'maturity_state']
-        value_data = [(x, y),  random.randint(lifespan-10, lifespan), genotype, Inheritance(turtle=self), fertility_period, fertility_state, maturity_age, maturity_state]
+        age_gap = 4
+        turtle_age = randint(a=lifespan, b=lifespan + age_gap)
+
+        value_data = [(x, y),  turtle_age, genotype, Inheritance(turtle=self), fertility_period, fertility_state, maturity_age, maturity_state]
         for key, value in zip(key_variables, value_data):
             self.setdefault(key, value)
         return self
@@ -106,14 +115,14 @@ class TurtleBlueprint(TurtlesData):
         x_cloc, y_cloc = turtle.location
         new_step = random.choice(list(coor_move.items()))
         cardinals, (x_rloc, y_rloc) = new_step
-        new_xloc = max(0, min(VIEW_FWIDTH - TURTLE_SIZE, round(x_cloc + 10 * random.random() * x_rloc, ndigits=2)))
-        new_yloc = max(0, min(VIEW_FHEIGHT - TURTLE_SIZE, round(y_cloc + 10 * random.random() * y_rloc, ndigits=2)))
+        new_xloc = max(0, min(ENV_SPACE_WIDTH- TURTLE_SIZE, round(x_cloc + 10 * random.random() * x_rloc, ndigits=2)))
+        new_yloc = max(0, min(ENV_SPACE_HEIGH - TURTLE_SIZE, round(y_cloc + 10 * random.random() * y_rloc, ndigits=2)))
         turtle.turtle_btn.place(x=new_xloc, y=new_yloc)
         turtle.location = (new_xloc, new_yloc)
 
     
     @classmethod
-    def closest_neighbors(cls, turtle_instance: Dict, all_turtles: list) -> Tuple[Dict, Dict]:
+    def inspect_closest_neighbour(cls, turtle_instance: Dict, all_turtles: list) -> Tuple[Dict, Dict]:
         dist_to_neighbor = {}
         if len(all_turtles) <= 1:
             return None
@@ -122,7 +131,7 @@ class TurtleBlueprint(TurtlesData):
                 x1, y1 = turtle_instance.location
                 x2, y2 = turtle.location
                 d = math.sqrt((x2-x1)**2 + (y2-y1)**2)
-                dist_to_neighbor.setdefault(turtle.ID, d)
+                dist_to_neighbor.setdefault(turtle.ID, d) # a dict with all turtles ID and their distance to neighbours 
         
         closest_neighbor_id = min(dist_to_neighbor, key=dist_to_neighbor.get) # closest neighbor ID
         
@@ -143,12 +152,12 @@ class TurtleBlueprint(TurtlesData):
                 ):
                 candidates.append(turtle)
                 
-        parents = TurtleBlueprint.closest_neighbors(turtle_instance=turtle_instance, all_turtles=candidates)
+        parents = TurtleBlueprint.inspect_closest_neighbour(turtle_instance=turtle_instance, all_turtles=candidates)
         if parents is None:
             return
         parent1, parent2, dist = parents 
         
-        x1, y1 = parent1.location 
+        x1, y1 = parent1.location
         x2, y2 = parent2.location 
         if x1 > x2:
             x1 -= 10 * random.random()
@@ -167,8 +176,10 @@ class TurtleBlueprint(TurtlesData):
         parent2.turtle_btn.place_configure(x = x2, y= y2)
         parent1.location = (round(x1, ndigits=2), round(y1, ndigits=2))
         parent2.location = (round(x2, ndigits=2), round(y2, ndigits=2))
-
-        
+    
+    @classmethod
+    def search_for_food(self, turtle_instance: Dict, all_turtles: List[Dict]):
+        ...
     @classmethod
     def give_birth(cls, parents:Tuple[Any, Any, float], 
                    environment:ctk.CTkFrame, 
