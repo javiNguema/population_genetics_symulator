@@ -121,44 +121,58 @@ class TurtleBlueprint(TurtlesData):
         turtle.location = (new_xloc, new_yloc)
 
     
+    MALE = Dict
+    FEMALE = Dict
+    DISTANCE = Any
+
     @classmethod
-    def inspect_closest_neighbour(cls, turtle_instance: Dict, all_turtles: list) -> Tuple[Dict, Dict]:
-        dist_to_neighbor = {}
+    def inspect_closest_neighbour(cls, turtle_instance: Dict, all_turtles: list) -> Tuple[MALE, FEMALE, DISTANCE]:
+        potential_partners = []
+        male = None 
+        female = None
+        dist = None
+
         if len(all_turtles) <= 1:
             return None
-        for turtle in all_turtles:
-            if turtle_instance.ID != turtle.ID:
-                x1, y1 = turtle_instance.location
-                x2, y2 = turtle.location
-                d = math.sqrt((x2-x1)**2 + (y2-y1)**2)
-                dist_to_neighbor.setdefault(turtle.ID, d) # a dict with all turtles ID and their distance to neighbours 
         
-        closest_neighbor_id = min(dist_to_neighbor, key=dist_to_neighbor.get) # closest neighbor ID
-        
-        for turtle in all_turtles:
-            if turtle.ID == closest_neighbor_id:
-                return turtle_instance, turtle, dist_to_neighbor[closest_neighbor_id]
+        candidate_sex = ['M', 'F']
+        candidate_sex.remove(turtle_instance.sex)
+
+        mating_candidates = filter(lambda candidate: candidate if candidate.sex == candidate_sex[0] else None, all_turtles)
+        x1, y1 = turtle_instance.location
+
+        for turtle in mating_candidates:
+            x2, y2 = turtle.location
+            d = math.sqrt((x2-x1)**2 + (y2-y1)**2)
+            potential_partners.append((turtle, d)) # a tuple with the canditates and distances to the instance
+
+
+        if not potential_partners:
+            return None
+        partner, dist = min(potential_partners, key=lambda item: item[1]) # tuple with nearest candidate
+
+        if candidate_sex[0] == 'F':
+            female, male = partner, turtle_instance
+
+        elif candidate_sex[0] == 'M':
+            male, female = partner, turtle_instance
+
+        return male, female, dist
             
     @classmethod
     def search_for_mates(cls, turtle_instance: Dict, all_turtles: List[Dict]):
-        candidates = []
-        for turtle in all_turtles:
-            if (turtle_instance.ID != turtle.ID
-                and turtle_instance.sex != turtle.sex
-                and turtle_instance.fertility_state == 'fertile'
-                and turtle_instance.maturity_state == 'mature'
-                and turtle.fertility_state == 'fertile'
-                and turtle.maturity_state == 'mature'
-                ):
-                candidates.append(turtle)
-                
-        parents = TurtleBlueprint.inspect_closest_neighbour(turtle_instance=turtle_instance, all_turtles=candidates)
-        if parents is None:
+        close_neigbors = TurtleBlueprint.inspect_closest_neighbour(turtle_instance=turtle_instance, all_turtles=all_turtles)
+
+        if close_neigbors  is None:
             return
-        parent1, parent2, dist = parents 
         
-        x1, y1 = parent1.location
-        x2, y2 = parent2.location 
+        male, female, dist = close_neigbors 
+
+        if 'fertile' not in (female.fertility_state, male.fertility_state) and not 'mature' in (female.maturity_state, male.maturity_state):
+            return None
+        
+        x1, y1 = male.location
+        x2, y2 = female.location 
         if x1 > x2:
             x1 -= 10 * random.random()
             x2 += 10 * random.random()
@@ -172,51 +186,60 @@ class TurtleBlueprint(TurtlesData):
             y1 += 10 * random.random()
             y2 -= 10 * random.random()
             
-        parent1.turtle_btn.place_configure(x = x1, y= y1)
-        parent2.turtle_btn.place_configure(x = x2, y= y2)
-        parent1.location = (round(x1, ndigits=2), round(y1, ndigits=2))
-        parent2.location = (round(x2, ndigits=2), round(y2, ndigits=2))
+        male.turtle_btn.place_configure(x = x1, y= y1)
+        female.turtle_btn.place_configure(x = x2, y= y2)
+        male.location = (round(x1, ndigits=2), round(y1, ndigits=2))
+        female.location = (round(x2, ndigits=2), round(y2, ndigits=2))
     
     @classmethod
     def search_for_food(self, turtle_instance: Dict, all_turtles: List[Dict]):
         ...
+
+
     @classmethod
-    def give_birth(cls, parents:Tuple[Any, Any, float], 
+    def give_birth(cls, parents:Tuple[MALE, FEMALE, DISTANCE], 
                    environment:ctk.CTkFrame, 
                    lifespan:int, 
                    birth_chances: float, 
                    fertility_period: int, 
                    maturity_age: int
                    ) -> Any:
-        parent1, parent2, dist = parents
+
+        male, female, dist = parents
+
         birth_coeff = random.gauss(mu = 0.50, sigma=0.05)
         if (dist <= MAX_DISTANCE_FOR_BIRTH) \
-            and (float(parent1.lifespan) > 0) \
-            and (float(parent2.lifespan) > 0) \
+            and (float(male.lifespan) > 0) \
+            and (float(female.lifespan) > 0) \
             and (birth_coeff <= birth_chances) \
-            and (int(parent1.fertility_period) == fertility_period) \
-            and (int(parent2.fertility_period) == fertility_period) \
-            and (int(parent1.maturity_age) == maturity_age) \
-            and (int(parent2.maturity_age) == maturity_age) :
+            and (int(male.fertility_period) == fertility_period) \
+            and (int(female.fertility_period) == fertility_period) \
+            and (int(male.maturity_age) == maturity_age) \
+            and (int(female.maturity_age) == maturity_age):
                 
                 
-            x_loc, y_loc = parent1.location
+            x_loc, y_loc = female.location
             new_born = cls(environment)
-            new_born.location = parent1.location
+
+            new_born.location = female.location
             new_born.lifespan = lifespan
-            new_born_genotype = Inheritance.homozigous_parents(parent1=parent1, parent2=parent2)
+
+            new_born_genotype = Inheritance.homozigous_parents(parent1=male, parent2=female)
             new_born.genotype = new_born_genotype
             new_born.fenotype = 'None'
             new_born.fertility_period = fertility_period
             new_born.maturity_age = 0
             new_born.maturity_state = 'immature'
             new_born.fertility_state = 'infertile'
-            parent1.fertility_period = 0
-            parent2.fertility_period = 0
-            parent1.fertility_state = 'infertile'
-            parent2.fertility_state = 'infertile'
+
+            male.fertility_period = 0
+            female.fertility_period = 0
+            male.fertility_state = 'infertile'
+            female.fertility_state = 'infertile'
+
             new_born.turtle_btn.place_configure(x = x_loc, y = y_loc)
             new_born.turtle_btn.configure(fg_color = 'green')
+
             return new_born
     
     @classmethod

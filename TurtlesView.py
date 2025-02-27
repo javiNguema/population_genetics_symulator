@@ -9,6 +9,7 @@ import tkinter as tk
 import functools
 from TurtlesModel import TurtleBlueprint
 import random
+import time
 
 text_font = 'Arial', 15
 SETTING_FWIDTH = 200
@@ -56,6 +57,7 @@ class TurtleInfo(ctk.CTkToplevel):
                 ctk.CTkLabel(info_frame, font = ('Arial', 15), text= f'x: {info[0]}, y: {info[1]}').pack_configure(side = 'top', anchor='w', pady = 5, padx=5)
                 
         self.attributes('-topmost', 'true') # ensure the toplevel to stay on top of all windows 
+        
 
 
 class EvolutionFigure:
@@ -212,7 +214,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
             
         settings_frame = self.frames[0]
         self.cfbuttons = {'initialize': (..., self._initialize_universe),
-                          'start': (..., self._evolve),
+                          'start': (..., self.start_simulation),
                           'stop': (..., self.stop_simulation),
                           'pause': (..., self.pause_simulation),
                           'resume': (..., self.resume_simulation),
@@ -303,6 +305,8 @@ class Universe(ctk.CTk): # environment where the tortles evolve
             self.is_evolving = True
             self.continue_run_evolve()
             self.is_evolving = False
+        self.run_evolve(all_turtles=self.all_turtles)
+        
         
 
     def _show_turtle_info(self, event:tk.Event=None) -> None:
@@ -338,7 +342,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
         
     
     def _initialize_universe(self, event=None):
-        
+
         if self.is_evolving:
             return
         self.PAUSE = False
@@ -346,6 +350,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
         self.is_initialized = True
         self.simulation_time = 200 # we have to create a widget to be able to tweak this parameter
         
+
         for child in self.environment.winfo_children():
             child.place_forget()
             
@@ -456,6 +461,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
             nturtles = len(all_turtles_update)
             n = 0
             while nturtles:
+                new_born = None
                 turtle = all_turtles_update[n]
                 
                 closest_neighbors = TurtleBlueprint.inspect_closest_neighbour(turtle_instance=turtle, all_turtles=all_turtles_update)
@@ -466,12 +472,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
                                                         birth_chances=birth_rate_value,
                                                         fertility_period=fertility_period,
                                                         maturity_age=maturity_age)
-                try:
-                    assert new_born
-                except (AssertionError, UnboundLocalError):
-                    pass
-
-                else:
+                if new_born is not None:
                     new_born.turtle_btn.bind('<Button-1>', self._show_turtle_info)
                     all_turtles.append(new_born)
                     if new_born.genotype == 'aA' or  new_born.genotype == 'Aa':
@@ -505,7 +506,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
                     
                 turtle.turtle_btn.update()
                 
-                if (turtle.lifespan == 0) and (turtle.ID not in death_turtles):
+                if (turtle.lifespan == 0):
                     TurtleBlueprint.die(turtle, all_turtles, death_turtles, genotypes)
 
                 n +=1
@@ -516,7 +517,7 @@ class Universe(ctk.CTk): # environment where the tortles evolve
             ticks +=1
 
     
-    def _evolve(self, event=None):
+    def start_simulation(self, event=None):
         if self.STOP:
             return
         if  self.is_evolving or not self.is_initialized: # if is evolving already or is not initialized already, then we do not evolve
